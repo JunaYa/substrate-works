@@ -141,7 +141,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			ensure!(KittyOwner::<T>::contains_key(kitty_id), Error::<T>::InvalidKittyId);
 
-			let owner = Self::kitty_owner(kitty_id);
+			let owner = Self::kitty_owner(kitty_id).ok_or(Error::<T>::InvalidKittyId)?;
 			ensure!(owner == who, Error::<T>::NotOwner);
 
 			KittyOwner::<T>::insert(kitty_id, &recipient);
