@@ -15,11 +15,16 @@ fn it_works_for_created() {
 		assert_ok!(KittiesModule::kitty_owner(kitty_id), Some(account_id));
 		assert_ok!(KittiesModule::parents(kitty_id), None);
 
+    // homework
+    let kitty = KittiesModule::kitties(kitty_id).unwrap();
+    System::assert_last_event(Event::KittyCreated{who: account_id, kitty_id: kitty}.into());
+
 		crate::NextKittyId::<Test>::set(crate::KittyId::max_vale);
 		assert_noop!(
 			KittiesModule::create(RuntimeOrigin::signed(account_id)),
 			Error::<Test>::InvalidKittyId
-		)
+		);
+
 	});
 
 	assert_ok(1, 1);

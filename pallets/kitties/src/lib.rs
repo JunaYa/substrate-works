@@ -10,10 +10,12 @@ pub mod pallet {
 	use frame_support::pallet_prelude::{DispatchResult, *};
 	use frame_system::pallet_prelude::*;
 
-	use frame_support::traits::Randomness;
+	use frame_support::traits::{Currency, Randomness, ReservableCurrency};
 	use sp_io::hashing::blake2_128;
 
 	pub type KittyId = u32;
+	pub type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	#[derive(
 		Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug, Default, TypeInfo, MaxEncodedLen,
@@ -29,6 +31,9 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
+		type Currency: ReservableCurrency<Self::AccountId>;
+		#[pallet::constant]
+		type KittyPrice: Get<BalanceOf<Self>>;
 	}
 
 	#[pallet::storage]
@@ -92,6 +97,10 @@ pub mod pallet {
 
 			let kitty_id = Self::get_next_id()?;
 			let kitty = Kitty(Self::random_value(&who));
+
+			let price = T::KittyPrice::get();
+			T::Currency::reserve(&who, price)?;
+
 			Kitties::<T>::insert(kitty_id, &kitty);
 			KittyOwner::<T>::insert(kitty_id, &who);
 
