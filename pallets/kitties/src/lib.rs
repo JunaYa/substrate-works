@@ -7,7 +7,10 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::pallet_prelude::{DispatchResult, *};
+	use frame_support::{
+		pallet_prelude::{DispatchResult, *},
+		Blake2_128Concat,
+	};
 	use frame_system::pallet_prelude::*;
 
 	use frame_support::traits::{Currency, Randomness, ReservableCurrency};
@@ -53,6 +56,10 @@ pub mod pallet {
 	pub type KittyParents<T: Config> =
 		StorageMap<_, Blake2_128Concat, KittyId, (KittyId, KittyId), OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn kitty_on_sale)]
+	pub type KittyOnSale<T: Config> = StorageMap<_, Blake2_128Concat, KittyId, ()>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -73,6 +80,10 @@ pub mod pallet {
 			recipient: T::AccountId,
 			kitty_id: KittyId,
 		},
+		KittyOnSale {
+			who: T::AccountId,
+			kitty_id: KittyId,
+		},
 	}
 
 	// Errors inform users that something went wrong.
@@ -81,6 +92,10 @@ pub mod pallet {
 		InvalidKittyId,
 		SameKittyId,
 		NotOwner,
+		AlreadyOwner,
+		AlreadyOnSale,
+		NotOnSale,
+		NoOwner,
 	}
 
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
@@ -155,6 +170,43 @@ pub mod pallet {
 
 			KittyOwner::<T>::insert(kitty_id, &recipient);
 			Self::deposit_event(Event::KittyTransfferd { who, recipient, kitty_id });
+			Ok(())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(10_000)]
+		pub fn sale(origin: OriginFor<T>, kitty_id: KittyId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			Self::kitties(kitty_id).ok_or::<DispatchError>(Error::<T>::InvalidKittyId.into())?;
+
+			ensure!(Self::kitty_owner(kitty_id) == Some(who.clone()), Error::<T>::NotOwner);
+			ensure!(Self::kitty_on_sale(kitty_id).is_some(), Error::<T>::AlreadyOnSale);
+
+			<KittyOnSale<T>>::insert(kitty_id, ());
+			Self::deposit_event(Event::KittyOnSale { who, kitty_id });
+
+			Ok(())
+		}
+
+		#[pallet::call_index(4)]
+		#[pallet::weight(10_000)]
+		pub fn buy(origin: OriginFor<T>, kitty_id: KittyId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			Self::kitties(kitty_id).ok_or::<DispatchError>(Error::<T>::InvalidKittyId.into())?;
+
+			let owner =
+				Self::kitty_owner(kitty_id).ok_or::<DispatchError>(Error::<T>::NoOwner.into())?;
+			ensure!(owner != who, Error::<T>::AlreadyOwner);
+			ensure!(Self::kitty_on_sale(kitty_id).is_some(), Error::<T>::NotOnSale);
+
+			let price = T::KittyPrice::get();
+			T::Currency::reserve(&who, price)?;
+			// T::Currency::unreserve(&owner, price)?;
+			// T::Currency::transfer(&who, owner, price, ExistenceRequirement::KeepAlive)?;
+
+			<KittyOwner<T>>::insert(kitty_id, &who);
+			<KittyOnSale<T>>::remove(kitty_id);
+
 			Ok(())
 		}
 	}

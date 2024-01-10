@@ -53,16 +53,44 @@ fn revoke_claim_fail_when_claim_not_exist() {
 	});
 }
 
-// #[test]
-// fn transfer_claim_works() {
-// 	new_test_ext().execute_with(|| {
-// 		let claim = BoundedVec::try_from(vec![0; 1]).unwrap();
-// 		let _ = PoeModule::create_claim(RuntimeOrigin::signed(1), claim.clone());
-// 		assert_ok!(PoeModule::transfer_claim(RuntimeOrigin::signed(1), claim.clone(), 2));
-// 		// 断言链上状态
-// 		assert_eq!(
-// 			Proofs::<Test>::get(&claim),
-// 			Some((2, frame_system::Pallet::<Test>::block_number()))
-// 		);
-// 	});
-// }
+#[test]
+fn transfer_claim_works() {
+	new_test_ext().execute_with(|| {
+		let claim = BoundedVec::try_from(vec![0; 1]).unwrap();
+
+		assert_ok!(PoeModule::create_claim(RuntimeOrigin::signed(1), claim.clone()));
+
+		assert_ok!(PoeModule::transfer_claim(RuntimeOrigin::signed(1), claim.clone(), 2));
+
+		assert_eq!(
+			Proofs::<Test>::get(&claim),
+			Some((2, frame_system::pallet::Pallet::<Test>::block_number()))
+		);
+	});
+}
+
+#[test]
+fn transfer_claim_failed_when_claim_not_exist() {
+	new_test_ext().execute_with(|| {
+		let claim = BoundedVec::try_from(vec![0; 1]).unwrap();
+
+		assert_noop!(
+			PoeModule::transfer_claim(RuntimeOrigin::signed(1), claim.clone(), 2),
+			Error::<Test>::ClaimNotExist
+		);
+	});
+}
+
+#[test]
+fn transfer_claim_failed_when_not_claim_owner() {
+	new_test_ext().execute_with(|| {
+		let claim = BoundedVec::try_from(vec![0; 1]).unwrap();
+
+		assert_ok!(PoeModule::create_claim(RuntimeOrigin::signed(1), claim.clone()));
+
+		assert_noop!(
+			PoeModule::transfer_claim(RuntimeOrigin::signed(2), claim.clone(), 3),
+			Error::<Test>::NotClaimOwner
+		);
+	});
+}
