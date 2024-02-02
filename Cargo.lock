@@ -4245,7 +4245,6 @@ dependencies = [
  "pallet-aura",
  "pallet-balances",
  "pallet-grandpa",
- "pallet-poe",
  "pallet-sudo",
  "pallet-template",
  "pallet-timestamp",
